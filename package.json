@@ -9,6 +9,9 @@
   "author": "Tahier Hussain",
   "license": "ISC",
   "dependencies": {
-    "cors": "^2.8.5"
+    "convert-csv-to-json": "^1.0.0",
+    "cors": "^2.8.5",
+    "elasticsearch": "^16.7.1",
+    "nodemon": "^2.0.4"
   }
 }
