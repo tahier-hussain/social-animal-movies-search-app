@@ -1,5 +1,4 @@
 const fs = require("fs");
-let csvToJson = require("convert-csv-to-json");
 const elasticsearch = require("elasticsearch");
 const esClient = new elasticsearch.Client({
   host: "127.0.0.1:9200",
@@ -8,7 +7,122 @@ const esClient = new elasticsearch.Client({
 
 //API for Movies Search
 exports.search = (req, res) => {
-  const { title, release_date, genre, duration, country, director, language } = req.query;
+  const { title, date_published, genre, duration, country, director, language, sort_duration, sort_duration_asc, sort_date_asc } = req.query;
+
+  let obj = {};
+  let searchIndex = 0;
+  if (!title && !date_published && !genre && !duration && !country && !director && !language) {
+    obj["match_all"] = {};
+  }
+
+  if (title || date_published || duration || director) {
+    obj["bool"] = {
+      must: []
+    };
+  }
+
+  if (title) {
+    obj.bool.must[searchIndex++] = {
+      match: {
+        title: {
+          query: req.query.title,
+          minimum_should_match: 3,
+          fuzziness: 2
+        }
+      }
+    };
+  }
+
+  if (date_published) {
+    obj.bool.must[searchIndex++] = {
+      match: {
+        date_published: {
+          query: req.query.date_published
+        }
+      }
+    };
+  }
+
+  if (duration) {
+    obj.bool.must[searchIndex++] = {
+      match: {
+        duration: {
+          query: req.query.duration
+        }
+      }
+    };
+  }
+
+  if (director) {
+    obj.bool.must[searchIndex++] = {
+      match: {
+        director: {
+          query: req.query.director,
+          minimum_should_match: 3,
+          fuzziness: 2
+        }
+      }
+    };
+  }
+
+  if (language) {
+    obj.bool.must[searchIndex++] = {
+      match: {
+        language: {
+          query: req.query.language
+        }
+      }
+    };
+  }
+
+  console.log(obj);
+  const search = function search(index, body) {
+    return esClient.search({ index: index, body: body });
+  };
+
+  // only for testing purposes
+  // all calls should be initiated through the module
+  const test = function test() {
+    let body = {
+      size: 20,
+      from: 0,
+      query: obj
+    };
+
+    // console.log(`retrieving documents whose title matches '${body.query.match.title.query}' (displaying ${body.size} items at a time)...`);
+    search("library", body)
+      .then(results => {
+        console.log(results);
+        console.log(`found ${results.hits.total} items in ${results.took}ms`);
+        if (results.hits.total > 0) console.log(`returned article titles:`);
+        results.hits.hits.forEach((hit, index) => console.log(`\t${body.from + ++index} - ${hit._source.title} (score: ${hit._score})`));
+
+        let output = results.hits.hits;
+        if (sort_duration && sort_duration_asc) {
+          output = output.sort((a, b) => {
+            return a._source.date_published - b._source.date_published;
+          });
+        } else if (sort_duration && !sort_duration_asc) {
+          output = output.sort((a, b) => {
+            return b._source.date_published - a._source.date_published;
+          });
+        }
+
+        if (sort_date_asc) {
+          output = output.sort((a, b) => {
+            return a._source.date_published - b._source.date_published;
+          });
+        } else {
+          output = output.sort((a, b) => {
+            return a._source.date_published - b._source.date_published;
+          });
+        }
+        res.json(output);
+      })
+      .catch(console.error);
+  };
+
+  test();
 };
 
 //API for indexing the data
