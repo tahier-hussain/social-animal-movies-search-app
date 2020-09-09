@@ -7,22 +7,25 @@ const esClient = new elasticsearch.Client({
 
 //API for Movies Search
 exports.search = (req, res) => {
-  const { title, date_published, genre, duration, country, director, language, sort_duration, sort_duration_asc, sort_date_asc } = req.query;
+  const { title, date_published, duration, director, genre, country, language, sort_duration, sort_duration_asc, sort_date, sort_date_asc } = req.query;
 
   let obj = {};
-  let searchIndex = 0;
+  let must_index = 0;
+  let filter_index = 0;
   if (!title && !date_published && !genre && !duration && !country && !director && !language) {
     obj["match_all"] = {};
   }
 
-  if (title || date_published || duration || director) {
+  if (title || date_published || duration || director || genre || country || language) {
     obj["bool"] = {
-      must: []
+      must: [],
+      filter: []
     };
   }
 
+  //Search for Movies by Title, Date of published, Duration and Director
   if (title) {
-    obj.bool.must[searchIndex++] = {
+    obj.bool.must[must_index++] = {
       match: {
         title: {
           query: req.query.title,
@@ -34,7 +37,7 @@ exports.search = (req, res) => {
   }
 
   if (date_published) {
-    obj.bool.must[searchIndex++] = {
+    obj.bool.must[must_index++] = {
       match: {
         date_published: {
           query: req.query.date_published
@@ -44,7 +47,7 @@ exports.search = (req, res) => {
   }
 
   if (duration) {
-    obj.bool.must[searchIndex++] = {
+    obj.bool.must[must_index++] = {
       match: {
         duration: {
           query: req.query.duration
@@ -54,7 +57,7 @@ exports.search = (req, res) => {
   }
 
   if (director) {
-    obj.bool.must[searchIndex++] = {
+    obj.bool.must[must_index++] = {
       match: {
         director: {
           query: req.query.director,
@@ -65,8 +68,29 @@ exports.search = (req, res) => {
     };
   }
 
+  //Filter movies by Country, Genre and Language
+  if (country) {
+    obj.bool.filter[filter_index++] = {
+      match: {
+        country: {
+          query: req.query.language
+        }
+      }
+    };
+  }
+
+  if (genre) {
+    obj.bool.filter[filter_index++] = {
+      match: {
+        genre: {
+          query: req.query.genre
+        }
+      }
+    };
+  }
+
   if (language) {
-    obj.bool.must[searchIndex++] = {
+    obj.bool.filter[filter_index++] = {
       match: {
         language: {
           query: req.query.language
@@ -75,49 +99,56 @@ exports.search = (req, res) => {
     };
   }
 
-  console.log(obj);
+  //Sort
+  let sort = [];
+
+  //Sort By Date
+  if (sort_date && sort_date_asc) {
+    sort[0] = {
+      date_published: {
+        order: "asc"
+      }
+    };
+  } else if (sort_date && !sort_duration) {
+    sort[0] = {
+      date_published: {
+        order: "desc"
+      }
+    };
+  }
+
+  //Sort by Duration
+  if (sort_duration && sort_duration_asc) {
+    sort[0] = {
+      duration: {
+        order: "asc"
+      }
+    };
+  } else if (sort_duration && !sort_duration_asc) {
+    sort[0] = {
+      duration: {
+        order: "desc"
+      }
+    };
+  }
+
   const search = function search(index, body) {
     return esClient.search({ index: index, body: body });
   };
 
   // only for testing purposes
-  // all calls should be initiated through the module
+  // all calls must be initiated through the module
   const test = function test() {
     let body = {
       size: 20,
-      from: 0,
-      query: obj
+      from: (req.query.page - 1 || 0) * 20,
+      query: obj,
+      sort: sort
     };
 
-    // console.log(`retrieving documents whose title matches '${body.query.match.title.query}' (displaying ${body.size} items at a time)...`);
     search("library", body)
       .then(results => {
-        console.log(results);
-        console.log(`found ${results.hits.total} items in ${results.took}ms`);
-        if (results.hits.total > 0) console.log(`returned article titles:`);
-        results.hits.hits.forEach((hit, index) => console.log(`\t${body.from + ++index} - ${hit._source.title} (score: ${hit._score})`));
-
-        let output = results.hits.hits;
-        if (sort_duration && sort_duration_asc) {
-          output = output.sort((a, b) => {
-            return a._source.date_published - b._source.date_published;
-          });
-        } else if (sort_duration && !sort_duration_asc) {
-          output = output.sort((a, b) => {
-            return b._source.date_published - a._source.date_published;
-          });
-        }
-
-        if (sort_date_asc) {
-          output = output.sort((a, b) => {
-            return a._source.date_published - b._source.date_published;
-          });
-        } else {
-          output = output.sort((a, b) => {
-            return a._source.date_published - b._source.date_published;
-          });
-        }
-        res.json(output);
+        res.json(results.hits.hits);
       })
       .catch(console.error);
   };
