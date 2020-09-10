@@ -9,15 +9,32 @@ const esClient = new elasticsearch.Client({
 exports.search = (req, res) => {
   const { title, date_published, duration, director, genre, country, language, sort_duration, sort_duration_asc, sort_date, sort_date_asc } = req.query;
 
-  let obj = {};
+  let query = {};
+  let sort = [];
   let must_index = 0;
   let filter_index = 0;
+
   if (!title && !date_published && !genre && !duration && !country && !director && !language) {
-    obj["match_all"] = {};
+    query["bool"] = {
+      must: [
+        {
+          match: {
+            year: {
+              query: "2019"
+            }
+          }
+        }
+      ]
+    };
+    sort[0] = {
+      reviews_from_users: {
+        order: "desc"
+      }
+    };
   }
 
   if (title || date_published || duration || director || genre || country || language) {
-    obj["bool"] = {
+    query["bool"] = {
       must: [],
       filter: []
     };
@@ -25,7 +42,7 @@ exports.search = (req, res) => {
 
   //Search for Movies by Title, Date of published, Duration and Director
   if (title) {
-    obj.bool.must[must_index++] = {
+    query.bool.must[must_index++] = {
       match: {
         title: {
           query: req.query.title,
@@ -37,7 +54,7 @@ exports.search = (req, res) => {
   }
 
   if (date_published) {
-    obj.bool.must[must_index++] = {
+    query.bool.must[must_index++] = {
       match: {
         date_published: {
           query: req.query.date_published
@@ -47,7 +64,7 @@ exports.search = (req, res) => {
   }
 
   if (duration) {
-    obj.bool.must[must_index++] = {
+    query.bool.must[must_index++] = {
       match: {
         duration: {
           query: req.query.duration
@@ -57,7 +74,7 @@ exports.search = (req, res) => {
   }
 
   if (director) {
-    obj.bool.must[must_index++] = {
+    query.bool.must[must_index++] = {
       match: {
         director: {
           query: req.query.director,
@@ -70,7 +87,7 @@ exports.search = (req, res) => {
 
   //Filter movies by Country, Genre and Language
   if (country) {
-    obj.bool.filter[filter_index++] = {
+    query.bool.filter[filter_index++] = {
       match: {
         country: {
           query: req.query.language
@@ -80,7 +97,7 @@ exports.search = (req, res) => {
   }
 
   if (genre) {
-    obj.bool.filter[filter_index++] = {
+    query.bool.filter[filter_index++] = {
       match: {
         genre: {
           query: req.query.genre
@@ -90,7 +107,7 @@ exports.search = (req, res) => {
   }
 
   if (language) {
-    obj.bool.filter[filter_index++] = {
+    query.bool.filter[filter_index++] = {
       match: {
         language: {
           query: req.query.language
@@ -98,9 +115,6 @@ exports.search = (req, res) => {
       }
     };
   }
-
-  //Sort
-  let sort = [];
 
   //Sort By Date
   if (sort_date && sort_date_asc) {
@@ -142,8 +156,8 @@ exports.search = (req, res) => {
     let body = {
       size: 20,
       from: (req.query.page - 1 || 0) * 20,
-      query: obj,
-      sort: sort
+      query,
+      sort
     };
 
     search("library", body)
