@@ -10,7 +10,6 @@ const paginate = require("jw-paginate");
 exports.search = (req, res) => {
   const { page, title, date_published, duration, director, genre, country, language, sort_duration, sort_duration_asc, sort_date, sort_date_asc } = req.query;
 
-  console.log(req.query);
   let query = {};
   let sort = [];
   let must_index = 0;
@@ -144,7 +143,6 @@ exports.search = (req, res) => {
       query,
       sort
     };
-    console.log(body);
 
     search("library", body)
       .then(results => {
@@ -179,7 +177,6 @@ exports.search = (req, res) => {
               movieB_worlwide_gross_income = parseFloat(b._source.worlwide_gross_income.slice(2, b._source.worlwide_gross_income.length));
             }
 
-            console.log(movieB_reviews_from_users + movieB_reviews_from_critics + movieB_worlwide_gross_income - (movieA_reviews_from_users + movieA_reviews_from_critics + movieA_worlwide_gross_income));
             return movieB_reviews_from_users + movieB_reviews_from_critics + movieB_worlwide_gross_income - (movieA_reviews_from_users + movieA_reviews_from_critics + movieA_worlwide_gross_income);
           });
         }
@@ -216,7 +213,6 @@ exports.search = (req, res) => {
         res.json({ status: 200, pager, pageOfMovies });
       })
       .catch(err => {
-        console.log(err);
         res.json({ status: 400, data: "Something went wrong" });
       });
   };
@@ -244,7 +240,6 @@ exports.indexData = (req, res) => {
     esClient
       .bulk({ body: bulkBody })
       .then(response => {
-        console.log(response);
         let errorCount = 0;
         response.items.forEach(movie => {
           if (movie.index && movie.index.error) {
